@@ -6,6 +6,13 @@ const cors = require("cors");
 const qs = require("qs");
 const session = require("express-session");
 
+const {
+  client_id,
+  client_secret,
+  redirect_uri,
+  app_url,
+} = require("./service_config");
+
 const app = express();
 app.use(express.json());
 app.use(
@@ -25,24 +32,16 @@ app.use(
   })
 );
 
-// Construct a schema, using GraphQL schema language
-var schema = buildSchema(`
-  type Query {
-    hello: String
-  }
-`);
-
-// The root provides a resolver function for each API endpoint
-var root = {
-  hello: () => {
-    return "Hello world!";
-  },
-};
-
 app.get("/login", function (req, res) {
+  const searchParams = new URLSearchParams({
+    response_type: "code",
+    client_id,
+    scope: "user-read-private user-read-email user-read-playback-state",
+    redirect_uri: redirect_uri,
+  });
+
   res.redirect(
-    "https://accounts.spotify.com/authorize?response_type=code&client_id=0ba22b4e952a4140aa188207642349f6&scope=user-read-private user-read-email user-read-playback-state&redirect_uri=" +
-      encodeURIComponent("http://localhost:4000/callback")
+    "https://accounts.spotify.com/authorize?" + searchParams.toString()
   );
 });
 
@@ -53,19 +52,20 @@ app.get("/callback", function (req, res) {
       qs.stringify({
         grant_type: "authorization_code",
         code: req.query.code,
-        redirect_uri: "http://localhost:4000/callback",
+        redirect_uri,
       }),
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization:
-            "Basic MGJhMjJiNGU5NTJhNDE0MGFhMTg4MjA3NjQyMzQ5ZjY6MjY2NjcwYTVjM2MzNDk1ZGE5MGVkZjk5MTgyZGI3OTg=",
+          Authorization: `Basic ${Buffer.from(
+            `${client_id}:${client_secret}`
+          ).toString("base64")}`,
         },
       }
     )
     .then((response) => {
       req.session.spotifyToken = response.data.access_token;
-      res.redirect("http://localhost:9000/");
+      res.redirect(app_url);
     })
     .catch((err) => {
       console.log(err);
@@ -80,13 +80,26 @@ app.get("/me", function (req, res) {
       },
     })
     .then((response) => {
-      console.log(response.data);
       res.status(200).send(response.data);
     })
     .catch((error) => {
       console.log(error);
     });
 });
+
+// Construct a schema, using GraphQL schema language
+var schema = buildSchema(`
+  type Query {
+    hello: String
+  }
+`);
+
+// The root provides a resolver function for each API endpoint
+var root = {
+  hello: () => {
+    return "Hello world!";
+  },
+};
 
 app.use(
   "/graphql",
