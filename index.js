@@ -14,7 +14,16 @@ app.use(
     credentials: true,
   })
 );
-app.use(session({ secret: "keyboard cat" }));
+app.use(
+  session({
+    secret: "keyboard cat",
+    cookie: {
+      secure: "auto",
+      httpOnly: true,
+      maxAge: 3600000,
+    },
+  })
+);
 
 // Construct a schema, using GraphQL schema language
 var schema = buildSchema(`
@@ -55,7 +64,7 @@ app.get("/callback", function (req, res) {
       }
     )
     .then((response) => {
-      req.session.cookie.spotifyToken = response.data.access_token;
+      req.session.spotifyToken = response.data.access_token;
       res.redirect("http://localhost:9000/");
     })
     .catch((err) => {
@@ -64,19 +73,19 @@ app.get("/callback", function (req, res) {
 });
 
 app.get("/me", function (req, res) {
-  console.log({session: req.session})
-  // TODO: Response is 401 Unauthorized due to lack of session state.
   axios
-    .get("https://api.spotify.com/vl/me", {
+    .get("https://api.spotify.com/v1/me", {
       headers: {
-        Authorization: "Bearer " + req.session.cookie.spotifyToken,
+        Authorization: "Bearer " + req.session.spotifyToken,
       },
     })
     .then((response) => {
-      
-      res.send(response);
+      console.log(response.data);
+      res.status(200).send(response.data);
     })
-    .catch((err) => console.log(err));
+    .catch((error) => {
+      console.log(error);
+    });
 });
 
 app.use(
