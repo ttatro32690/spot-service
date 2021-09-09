@@ -11,3 +11,10 @@ module.exports = {
 }
 
 ```
+
+2. Docker Commands
+
+```
+Build Imagine - docker build . -t ttatro32690/node-web-app
+Run Container - docker run -p 4000:4000 -d ttatro32690/node-web-app
+```
